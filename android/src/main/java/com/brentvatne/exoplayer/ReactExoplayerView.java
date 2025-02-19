@@ -1199,7 +1199,7 @@ public class ReactExoplayerView extends FrameLayout implements
                 }
 
                 mediaSourceFactory = new HlsMediaSource.Factory(
-                        dataSourceFactory
+                        new DecryptionDataSourceFactory(dataSourceFactory, new DynamicEncryptionKeyProvider())
                 ).setAllowChunklessPreparation(source.getTextTracksAllowChunklessPreparation());
                 break;
             case CONTENT_TYPE_OTHER:
