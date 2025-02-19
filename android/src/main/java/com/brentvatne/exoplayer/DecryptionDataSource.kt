@@ -26,31 +26,35 @@ class DecryptionDataSource(
             throw IOException("Invalid content length")
         }
 
-        // Read the encrypted data into memory.
-        val encryptedBuffer = ByteArray(length.toInt().coerceAtLeast(0))
-        var totalRead = 0
-        while (totalRead < encryptedBuffer.size) {
-            val read = upstream.read(encryptedBuffer, totalRead, encryptedBuffer.size - totalRead)
-            if (read == -1) break
-            totalRead += read
+        if (dataSpec.uri.path.endsWith(".m3u8")) {
+            // Read the encrypted data into memory.
+            val encryptedBuffer = ByteArray(length.toInt().coerceAtLeast(0))
+            var totalRead = 0
+            while (totalRead < encryptedBuffer.size) {
+                val read = upstream.read(encryptedBuffer, totalRead, encryptedBuffer.size - totalRead)
+                if (read == -1) break
+                totalRead += read
+            }
+
+            // Retrieve the current encryption keys from the provider.
+            val encryptionKeys = keyProvider.getEncryptionKeys()
+
+            // Decrypt using AES/CBC/PKCS5Padding.
+            try {
+                val cipher = Cipher.getInstance("AES/CBC/PKCS5Padding")
+                val secretKeySpec = SecretKeySpec(encryptionKeys.key, "AES")
+                val ivSpec = IvParameterSpec(encryptionKeys.iv)
+                cipher.init(Cipher.DECRYPT_MODE, secretKeySpec, ivSpec)
+                decryptedData = cipher.doFinal(encryptedBuffer)
+                bytesReadSoFar = 0
+            } catch (e: Exception) {
+                throw IOException("Error decrypting data: ${e.message}", e)
+            }
+
+            return decryptedData?.size?.toLong() ?: 0L
+        } else {
+            return length
         }
-
-        // Retrieve the current encryption keys from the provider.
-        val encryptionKeys = keyProvider.getEncryptionKeys()
-
-        // Decrypt using AES/CBC/PKCS5Padding.
-        try {
-            val cipher = Cipher.getInstance("AES/CBC/PKCS5Padding")
-            val secretKeySpec = SecretKeySpec(encryptionKeys.key, "AES")
-            val ivSpec = IvParameterSpec(encryptionKeys.iv)
-            cipher.init(Cipher.DECRYPT_MODE, secretKeySpec, ivSpec)
-            decryptedData = cipher.doFinal(encryptedBuffer)
-            bytesReadSoFar = 0
-        } catch (e: Exception) {
-            throw IOException("Error decrypting data: ${e.message}", e)
-        }
-
-        return decryptedData?.size?.toLong() ?: 0L
     }
 
     @Throws(IOException::class)
