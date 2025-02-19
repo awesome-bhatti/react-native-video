@@ -26,7 +26,7 @@ class DecryptionDataSource(
             throw IOException("Invalid content length")
         }
 
-        if (dataSpec.uri.path.endsWith(".m3u8")) {
+        if (dataSpec.uri.path?.endsWith(".m3u8") == true) {
             // Read the encrypted data into memory.
             val encryptedBuffer = ByteArray(length.toInt().coerceAtLeast(0))
             var totalRead = 0
